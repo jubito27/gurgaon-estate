@@ -1,0 +1,168 @@
+schema: '2.0'
+stages:
+  1_data_preprocessing_flats:
+    cmd: python src/data/1_data_pre_flats.py
+    deps:
+    - path: src/data/1_data_pre_flats.py
+      hash: md5
+      md5: 2b6e16c853a9a4695298027f00bc5922
+      size: 7003
+      isexec: true
+    outs:
+    - path: data/processed/flats
+      hash: md5
+      md5: 373d315cd1e89a6f0b892881b2a44e81.dir
+      size: 5142621
+      nfiles: 1
+  2_data_preprocessing_houses:
+    cmd: python src/data/2_data_pre_houses.py
+    deps:
+    - path: src/data/1_data_pre_flats.py
+      hash: md5
+      md5: 2b6e16c853a9a4695298027f00bc5922
+      size: 7003
+      isexec: true
+    - path: src/data/2_data_pre_houses.py
+      hash: md5
+      md5: 5b90b42be8545f7fe4e29fcaaa9995ed
+      size: 7325
+      isexec: true
+    outs:
+    - path: data/processed/houses
+      hash: md5
+      md5: 508e905b3ccfac55a78f7ca2030b75a2.dir
+      size: 1662759
+      nfiles: 1
+  3_merging_both_houses_and_flats:
+    cmd: python src/data/3_merge.py
+    deps:
+    - path: src/data/2_data_pre_houses.py
+      hash: md5
+      md5: 5b90b42be8545f7fe4e29fcaaa9995ed
+      size: 7325
+      isexec: true
+    - path: src/data/3_merge.py
+      hash: md5
+      md5: 2c112a7cdea6968b64a4370937a909d3
+      size: 4183
+      isexec: true
+    outs:
+    - path: data/processed/merged
+      hash: md5
+      md5: 917f297b46cccc7fca9f2ba053ba3e07.dir
+      size: 6813047
+      nfiles: 1
+  4_preprocessing_on_merged_data:
+    cmd: python src/data/4_merged_preprocessing.py
+    deps:
+    - path: src/data/3_merge.py
+      hash: md5
+      md5: 2c112a7cdea6968b64a4370937a909d3
+      size: 4183
+      isexec: true
+    - path: src/data/4_merged_preprocessing.py
+      hash: md5
+      md5: b67a59edee36e6af355d33b8b0e6ae1f
+      size: 10186
+      isexec: true
+    outs:
+    - path: data/processed/cleaned
+      hash: md5
+      md5: b5b9733ba0e03cae30c143fdb88a0602.dir
+      size: 4042444
+      nfiles: 1
+  5_feature_engineering:
+    cmd: python src/features/1_feature_engineering.py
+    deps:
+    - path: data/processed/cleaned/
+      hash: md5
+      md5: b5b9733ba0e03cae30c143fdb88a0602.dir
+      size: 4042444
+      nfiles: 1
+    - path: src/features/1_feature_engineering.py
+      hash: md5
+      md5: 0a0c12cad6487f24c2a9fb652d54fa51
+      size: 17232
+      isexec: true
+    outs:
+    - path: data/interim/
+      hash: md5
+      md5: 6d621b7f606a4c94da0b2c2a80af3620.dir
+      size: 821728
+      nfiles: 1
+  6_outlier_detection:
+    cmd: python src/data/5_outlier_detection.py
+    deps:
+    - path: data/interim/v1/
+      hash: md5
+      md5: a2f52c7b6e13296a250822b42c2d15e2.dir
+      size: 821728
+      nfiles: 1
+    - path: src/data/5_outlier_detection.py
+      hash: md5
+      md5: dc344fdfea81ca8b2832ec3a7226ae35
+      size: 9699
+      isexec: true
+    outs:
+    - path: data/processed/outlier_removed/
+      hash: md5
+      md5: 1de6c0596427414cd8f48ac148c82da3.dir
+      size: 792149
+      nfiles: 1
+  7_missing_values:
+    cmd: python src/data/6_missing_value.py
+    deps:
+    - path: data/processed/outlier_removed/
+      hash: md5
+      md5: 1de6c0596427414cd8f48ac148c82da3.dir
+      size: 792149
+      nfiles: 1
+    - path: src/data/6_missing_value.py
+      hash: md5
+      md5: fc33cdeb79409f6bbc5319154d399c1c
+      size: 12391
+      isexec: true
+    outs:
+    - path: data/processed/missing_value/
+      hash: md5
+      md5: 174da727f85c80ec9d9facd0a4fd4272.dir
+      size: 519099
+      nfiles: 1
+  8_feature_selection:
+    cmd: python src/features/2_feature_selection.py
+    deps:
+    - path: data/processed/missing_value/
+      hash: md5
+      md5: 174da727f85c80ec9d9facd0a4fd4272.dir
+      size: 519099
+      nfiles: 1
+    - path: src/features/2_feature_selection.py
+      hash: md5
+      md5: bc7897789762017812e932cce322d187
+      size: 6058
+      isexec: true
+    outs:
+    - path: data/processed/feature_selection/
+      hash: md5
+      md5: 80fbe22601f1e3803f46beee7d9cc9b4.dir
+      size: 175014
+      nfiles: 1
+  9_feature_transformation:
+    cmd: python src/features/3_feature_transformation.py
+    deps:
+    - path: data/processed/feature_selection/
+      hash: md5
+      md5: 80fbe22601f1e3803f46beee7d9cc9b4.dir
+      size: 175014
+      nfiles: 1
+    - path: src/features/3_feature_transformation.py
+      hash: md5
+      md5: 86dec903fdf893f3ff79333300bbc35f
+      size: 11899
+      isexec: true
+    outs:
+    - path: data/processed/feature_transformation/
+      hash: md5
+      md5: a0c9b5090da7f25c8d2f71053cf7760f.dir
+      size: 727796
+      nfiles: 1

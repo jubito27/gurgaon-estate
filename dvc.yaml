@@ -1,0 +1,63 @@
+stages:
+  1_data_preprocessing_flats:
+    cmd: python src/data/1_data_pre_flats.py
+    deps:
+    - src/data/1_data_pre_flats.py
+    outs:
+    - data/processed/flats
+  2_data_preprocessing_houses:
+    cmd: python src/data/2_data_pre_houses.py
+    deps:
+    - src/data/1_data_pre_flats.py
+    - src/data/2_data_pre_houses.py
+    outs:
+    - data/processed/houses
+  3_merging_both_houses_and_flats:
+    cmd: python src/data/3_merge.py
+    deps:
+    - src/data/2_data_pre_houses.py
+    - src/data/3_merge.py
+    outs:
+    - data/processed/merged
+  4_preprocessing_on_merged_data:
+    cmd: python src/data/4_merged_preprocessing.py
+    deps:
+    - src/data/3_merge.py
+    - src/data/4_merged_preprocessing.py
+    outs:
+    - data/processed/cleaned
+  5_feature_engineering:
+    cmd: python src/features/1_feature_engineering.py
+    deps:
+    - data/processed/cleaned/
+    - src/features/1_feature_engineering.py
+    outs:
+    - data/interim/
+  6_outlier_detection:
+    cmd: python src/data/5_outlier_detection.py
+    deps:
+    - data/interim/v1/
+    - src/data/5_outlier_detection.py
+    outs:
+    - data/processed/outlier_removed/
+  7_missing_values:
+    cmd: python src/data/6_missing_value.py
+    deps:
+    - data/processed/outlier_removed/
+    - src/data/6_missing_value.py
+    outs:
+    - data/processed/missing_value/
+  8_feature_selection:
+    cmd: python src/features/2_feature_selection.py
+    deps:
+    - data/processed/missing_value/
+    - src/features/2_feature_selection.py
+    outs:
+    - data/processed/feature_selection/
+  9_feature_transformation:
+    cmd: python src/features/3_feature_transformation.py
+    deps:
+    - data/processed/feature_selection/
+    - src/features/3_feature_transformation.py
+    outs:
+    - data/processed/feature_transformation/
