@@ -1,0 +1,15 @@
+model_building:
+  target_column: price
+  validation_size: 0.2
+  random_state: 42
+
+  xgboost:
+    n_estimators: 974
+    learning_rate: 0.10526914056016663
+    max_depth: 12
+    min_child_weight: 1
+    gamma: 0.018795185277108897
+    subsample: 0.8079122956973779
+    colsample_bytree: 0.7947938787822193
+    reg_alpha: 4.17187378088139e-05
+    reg_lambda: 2.1089841197246224e-07

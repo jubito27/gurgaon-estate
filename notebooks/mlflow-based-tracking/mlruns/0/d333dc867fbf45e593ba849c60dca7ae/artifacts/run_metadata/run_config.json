@@ -1,0 +1,46 @@
+{
+    "numeric_columns": [
+        "bedRoom",
+        "bathroom",
+        "built_up_area",
+        "servant room",
+        "store room"
+    ],
+    "ordinal_columns": [
+        "property_type",
+        "balcony",
+        "furnishing_type",
+        "luxury_category",
+        "floor_category"
+    ],
+    "onehot_columns": [
+        "agePossession"
+    ],
+    "target_encoding_columns": [
+        "sector"
+    ],
+    "model_params": {
+        "n_estimators": 974,
+        "learning_rate": 0.10526914056016663,
+        "max_depth": 12,
+        "min_child_weight": 1,
+        "gamma": 0.018795185277108897,
+        "subsample": 0.8079122956973779,
+        "colsample_bytree": 0.7947938787822193,
+        "reg_alpha": 4.17187378088139e-05,
+        "reg_lambda": 2.1089841197246224e-07
+    },
+    "target": "price",
+    "target_transformation": "log1p",
+    "test_size": 0.2,
+    "random_state": 42,
+    "metrics": {
+        "mae_log_target": 0.11363051552462212,
+        "rmse_log_target": 0.172451301302665,
+        "r2_log_target": 0.9036511539387763,
+        "mae_original_price": 0.45097697537648623,
+        "rmse_original_price": 0.9110954113293791,
+        "r2_original_price": 0.882598219485848,
+        "mape_original_price": 0.21334577859898318
+    }
+}

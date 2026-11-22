@@ -1,0 +1,6 @@
+{
+    "validation_mae": 0.475179003131768,
+    "validation_mse": 0.9938471084054195,
+    "validation_rmse": 0.9969188073285705,
+    "validation_r2": 0.8594384481603622
+}

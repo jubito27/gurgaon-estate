@@ -87,9 +87,14 @@ target/
 
 # Mypy cache
 .mypy_cache/
-
+.estate
 .env
 
 model
-data
+data/external
+data/internal
+data/interim
+data/processed
+data/cleaned
+data/raw
 reports

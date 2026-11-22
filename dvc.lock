@@ -119,42 +119,42 @@ stages:
       nfiles: 1
     - path: src/data/6_missing_value.py
       hash: md5
-      md5: fc33cdeb79409f6bbc5319154d399c1c
-      size: 12391
+      md5: d1888104755d20c353fc91ab0c7075ff
+      size: 13871
       isexec: true
     outs:
     - path: data/processed/missing_value/
       hash: md5
-      md5: 174da727f85c80ec9d9facd0a4fd4272.dir
-      size: 519099
+      md5: d466153ca52b417590f31e8afed18ad5.dir
+      size: 522075
       nfiles: 1
   8_feature_selection:
     cmd: python src/features/2_feature_selection.py
     deps:
     - path: data/processed/missing_value/
       hash: md5
-      md5: 174da727f85c80ec9d9facd0a4fd4272.dir
-      size: 519099
+      md5: d466153ca52b417590f31e8afed18ad5.dir
+      size: 522075
       nfiles: 1
     - path: src/features/2_feature_selection.py
       hash: md5
-      md5: bc7897789762017812e932cce322d187
-      size: 6058
+      md5: f686667ecef74c123bde08289f92d3a5
+      size: 9387
       isexec: true
     outs:
     - path: data/processed/feature_selection/
       hash: md5
-      md5: 80fbe22601f1e3803f46beee7d9cc9b4.dir
-      size: 175014
-      nfiles: 1
+      md5: b9d1965c9ce2ece0988fbe31c8c3d2c8.dir
+      size: 442358
+      nfiles: 2
   9_feature_transformation:
     cmd: python src/features/3_feature_transformation.py
     deps:
     - path: data/processed/feature_selection/
       hash: md5
-      md5: 80fbe22601f1e3803f46beee7d9cc9b4.dir
-      size: 175014
-      nfiles: 1
+      md5: b9d1965c9ce2ece0988fbe31c8c3d2c8.dir
+      size: 442358
+      nfiles: 2
     - path: src/features/3_feature_transformation.py
       hash: md5
       md5: 86dec903fdf893f3ff79333300bbc35f
@@ -163,6 +163,59 @@ stages:
     outs:
     - path: data/processed/feature_transformation/
       hash: md5
-      md5: a0c9b5090da7f25c8d2f71053cf7760f.dir
-      size: 727796
+      md5: 50225c9e5779841602660118f3b8243c.dir
+      size: 741139
       nfiles: 1
+  10_model_training:
+    cmd: python src/models/train_model.py
+    deps:
+    - path: 
+        data/processed/feature_selection/gurgaon_properties_post_feature_selection_v2.csv
+      hash: md5
+      md5: 435d3b1662a02480e6daac07bc5b6694
+      size: 263823
+      isexec: true
+    - path: params.yaml
+      hash: md5
+      md5: bf821fb92e2aa883af58660bd175095f
+      size: 378
+      isexec: true
+    - path: src/models/train_model.py
+      hash: md5
+      md5: ec5e724be24cae1371e13c29f1a46cf7
+      size: 14275
+      isexec: true
+    outs:
+    - path: model/
+      hash: md5
+      md5: c9211ae5d2c1aef7bf4b8f26d8419c7f.dir
+      size: 2542776
+      nfiles: 3
+  11_model_prediction:
+    cmd: python src/models/predict_model.py --input-path 
+      data/processed/feature_selection/gurgaon_properties_post_feature_selection_v2.csv
+      --output-path reports/predictions/predictions.csv --output-dir 
+      reports/predictions --model-dir model
+    deps:
+    - path: 
+        data/processed/feature_selection/gurgaon_properties_post_feature_selection_v2.csv
+      hash: md5
+      md5: 435d3b1662a02480e6daac07bc5b6694
+      size: 263823
+      isexec: true
+    - path: model/
+      hash: md5
+      md5: c9211ae5d2c1aef7bf4b8f26d8419c7f.dir
+      size: 2542776
+      nfiles: 3
+    - path: src/models/predict_model.py
+      hash: md5
+      md5: f52b4787f565ba9f5fa431883bd3ce54
+      size: 14109
+      isexec: true
+    outs:
+    - path: reports/predictions/predictions.csv
+      hash: md5
+      md5: 28925cd9b531d571ea60e4461800335b
+      size: 463258
+      isexec: true

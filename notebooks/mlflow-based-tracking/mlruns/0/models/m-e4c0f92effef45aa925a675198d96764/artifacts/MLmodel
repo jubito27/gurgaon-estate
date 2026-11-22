@@ -1,0 +1,42 @@
+artifact_path: /mnt/WindowsD/Projects/real-estate-valuation/notebooks/mlflow-based-tracking/mlruns/0/models/m-e4c0f92effef45aa925a675198d96764/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.pkl
+    predict_fn: predict
+    python_version: 3.14.10
+  sklearn:
+    code: null
+    pickled_model: model.pkl
+    serialization_format: cloudpickle
+    sklearn_version: 1.9.1
+    skops_trusted_types: null
+is_signature_from_type_hint: false
+mlflow_version: 3.18.0
+model_id: m-e4c0f92effef45aa925a675198d96764
+model_size_bytes: 1227733
+model_uuid: m-e4c0f92effef45aa925a675198d96764
+prompts: null
+run_id: d333dc867fbf45e593ba849c60dca7ae
+saved_input_example_info:
+  artifact_path: input_example.json
+  pandas_orient: split
+  serving_input_path: serving_input_example.json
+  type: dataframe
+signature:
+  inputs: '[{"type": "string", "name": "property_type", "required": true}, {"type":
+    "string", "name": "sector", "required": true}, {"type": "long", "name": "bedRoom",
+    "required": true}, {"type": "long", "name": "bathroom", "required": true}, {"type":
+    "string", "name": "balcony", "required": true}, {"type": "string", "name": "agePossession",
+    "required": true}, {"type": "double", "name": "built_up_area", "required": true},
+    {"type": "long", "name": "servant room", "required": true}, {"type": "long", "name":
+    "store room", "required": true}, {"type": "long", "name": "furnishing_type", "required":
+    true}, {"type": "string", "name": "luxury_category", "required": true}, {"type":
+    "string", "name": "floor_category", "required": true}]'
+  outputs: '[{"type": "tensor", "tensor-spec": {"dtype": "float32", "shape": [-1]}}]'
+  params: null
+type_hint_from_example: false
+utc_time_created: '2026-11-21 06:01:12.217470'

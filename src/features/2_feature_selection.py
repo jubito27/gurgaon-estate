@@ -60,7 +60,7 @@ def categorize_luxury(score):
         return "Low"
     elif 50 <= score < 150:
         return "Medium"
-    elif 150 <= score <= 175:
+    elif score >= 150:
         return "High"
     else:
         return None
@@ -148,6 +148,87 @@ def feature_selection(df: pd.DataFrame) -> pd.DataFrame:
     return selected_df
 
 
+def convert_to_v2_format(
+    selected_df: pd.DataFrame,
+    source_df: pd.DataFrame,
+) -> pd.DataFrame:
+    """
+    Create the notebook-style v2 output without changing the numeric CSV.
+
+    The numeric output encodes text categories, so values such as sector names
+    and the original ``3+`` balcony label cannot be safely recovered from that
+    file alone. Use the same source rows to restore those original categories,
+    while retaining the selected numeric data and the notebook's v2 column
+    order.
+    """
+    logger.info(
+        "Building the v2-style output from selected rows and original categories"
+    )
+
+    if not selected_df.index.is_unique or not source_df.index.is_unique:
+        raise ValueError(
+            "Source and selected DataFrame indices must be unique to preserve "
+            "row alignment."
+        )
+
+    missing_indices = selected_df.index.difference(source_df.index)
+    if not missing_indices.empty:
+        raise KeyError(
+            "Cannot restore original categories; selected rows are missing "
+            f"from the source data: {missing_indices.tolist()[:10]}"
+        )
+
+    required_source_columns = [
+        "property_type",
+        "sector",
+        "agePossession",
+        "balcony",
+        "floorNum",
+        "luxury_score",
+    ]
+    missing_columns = [
+        column
+        for column in required_source_columns
+        if column not in source_df.columns
+    ]
+    if missing_columns:
+        raise KeyError(
+            "Missing source columns required to create v2 output: "
+            f"{missing_columns}"
+        )
+
+    # Align source rows to the selected output order before combining values.
+    original_rows = source_df.loc[selected_df.index]
+    v2_df = pd.DataFrame(index=selected_df.index)
+
+    # These are the original human-readable categories lost during ordinal
+    # encoding. Keeping them from the source avoids guessing inverse mappings.
+    v2_df["property_type"] = original_rows["property_type"]
+    v2_df["sector"] = original_rows["sector"]
+    v2_df["price"] = selected_df["price"]
+    v2_df["bedRoom"] = selected_df["bedRoom"]
+    v2_df["bathroom"] = selected_df["bathroom"]
+    v2_df["balcony"] = original_rows["balcony"]
+    v2_df["agePossession"] = original_rows["agePossession"]
+    v2_df["built_up_area"] = selected_df["built_up_area"]
+    v2_df["servant room"] = selected_df["servant room"]
+    v2_df["store room"] = selected_df["store room"]
+    v2_df["furnishing_type"] = selected_df["furnishing_type"]
+
+    # Recreate category labels with the same binning rules used for selection.
+    v2_df["luxury_category"] = original_rows["luxury_score"].apply(
+        categorize_luxury
+    )
+    v2_df["floor_category"] = original_rows["floorNum"].apply(categorize_floor)
+
+    logger.info(
+        "Created v2-style dataframe. Shape: %s; columns: %s",
+        v2_df.shape,
+        list(v2_df.columns),
+    )
+    return v2_df
+
+
 def save_data(
     df: pd.DataFrame,
     output_path: str,
@@ -180,10 +261,24 @@ def main(
         logger.debug("Raw dataframe columns: %s", list(df.columns))
 
         selected_df = feature_selection(df=df)
+        v2_df = convert_to_v2_format(
+            selected_df=selected_df,
+            source_df=df,
+        )
 
         save_data(
             df=selected_df,
             output_path=output_path,
+            output_dir=output_dir,
+        )
+
+        output_path_v2 = pathlib.Path(output_path).with_name(
+            f"{pathlib.Path(output_path).stem}_v2"
+            f"{pathlib.Path(output_path).suffix}"
+        )
+        save_data(
+            df=v2_df,
+            output_path=str(output_path_v2),
             output_dir=output_dir,
         )
 
@@ -209,6 +304,7 @@ if __name__ == "__main__":
         output_dir
         / "gurgaon_properties_post_feature_selection.csv"
     )
+
 
     logger.info("Current file: %s", current_file)
     logger.info("Home directory: %s", home_dir)

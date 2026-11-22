@@ -61,3 +61,36 @@ stages:
     - src/features/3_feature_transformation.py
     outs:
     - data/processed/feature_transformation/
+  10_model_training:
+    cmd: python src/models/train_model.py
+    deps:
+    - data/processed/feature_selection/gurgaon_properties_post_feature_selection_v2.csv
+    - src/models/train_model.py
+    - params.yaml
+    outs:
+    - model/
+  11_model_prediction:
+    cmd: python src/models/predict_model.py --input-path 
+      data/processed/feature_selection/gurgaon_properties_post_feature_selection_v2.csv
+      --output-path reports/predictions/predictions.csv --output-dir 
+      reports/predictions --model-dir model
+    deps:
+    - data/processed/feature_selection/gurgaon_properties_post_feature_selection_v2.csv
+    - src/models/predict_model.py
+    - model/
+    outs:
+    - reports/predictions/predictions.csv
+params:
+- dvclive/params.yaml
+metrics:
+- dvclive/metrics.json
+plots:
+- dvclive/plots/metrics:
+    x: step
+artifacts:
+  pipeline:
+    path: model/pipeline.pkl
+  preprocessor:
+    path: model/preprocessor.pkl
+  model_metadata:
+    path: model/model_metadata.json
