@@ -44,6 +44,9 @@ RAW_FEATURES_PATH = (
     RAW_DATA_DIR / "gurgaon_properties_post_feature_selection_v2.csv"
 )
 ANALYTICS_DATA_PATH = RAW_DATA_DIR / "data_viz1.csv"
+PROPERTY_CATALOG_PATH = (
+    PROJECT_ROOT / "model" / "recommendation" / "property_catalog.csv"
+)
 APARTMENT_DATA_PATH = RAW_DATA_DIR / "appartments.csv"
 PROPERTY_FEATURES_PATH = RAW_DATA_DIR / "gurgaon_properties.csv"
 PIPELINE_PATH = PROJECT_ROOT / "model" / "pipeline.pkl"
@@ -87,8 +90,15 @@ def sorted_values(series: pd.Series) -> list[Any]:
 
 def load_apartment_data() -> pd.DataFrame:
     """Load the notebook's raw apartment catalog and remove its repeated header."""
+    # The DVC recommendation stage publishes the catalog alongside its model.
+    # Prefer that deployable artifact; retain the raw CSV as a local-dev fallback.
+    source_path = (
+        PROPERTY_CATALOG_PATH
+        if PROPERTY_CATALOG_PATH.is_file()
+        else APARTMENT_DATA_PATH
+    )
     df = load_csv(
-        APARTMENT_DATA_PATH,
+        source_path,
         (
             "PropertyName",
             "LocationAdvantages",
@@ -217,19 +227,18 @@ training_df = load_csv(
     ),
 )
 
-analytics_df = load_csv(
-    ANALYTICS_DATA_PATH,
-    (
-        "property_type",
-        "sector",
-        "price",
-        "price_per_sqft",
-        "bedRoom",
-        "built_up_area",
-        "latitude",
-        "longitude",
-    ),
-)
+# The original exploratory notebook's data_viz1.csv is optional at deploy time.
+# The selected-feature DVC artifact is sufficient for all non-geographic charts.
+if ANALYTICS_DATA_PATH.is_file():
+    analytics_df = load_csv(
+        ANALYTICS_DATA_PATH,
+        ("property_type", "sector", "price", "bedRoom", "built_up_area"),
+    )
+else:
+    analytics_df = training_df.copy()
+    logger.info(
+        "Optional analytics CSV not found; using the DVC feature-selection data"
+    )
 
 for column in (
     "price",
@@ -239,9 +248,19 @@ for column in (
     "longitude",
     "bedRoom",
 ):
-    analytics_df[column] = pd.to_numeric(
-        analytics_df[column],
-        errors="coerce",
+    if column in analytics_df.columns:
+        analytics_df[column] = pd.to_numeric(
+            analytics_df[column],
+            errors="coerce",
+        )
+
+if "price_per_sqft" not in analytics_df.columns:
+    area = pd.to_numeric(analytics_df["built_up_area"], errors="coerce")
+    price = pd.to_numeric(analytics_df["price"], errors="coerce")
+    analytics_df["price_per_sqft"] = np.where(
+        area > 0,
+        price * 10000 / area,
+        np.nan,
     )
 
 apartment_df = load_apartment_data()
@@ -333,6 +352,12 @@ def get_json_object():
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+@app.route("/health")
+def health():
+    """Lightweight container and load-balancer health check."""
+    return jsonify({"status": "ok"}), 200
 
 
 @app.route("/api/options", methods=["GET"])
@@ -506,6 +531,36 @@ def plot_response(fig) -> Response:
 
 @app.route("/api/analytics/geomap")
 def analytics_geomap():
+    # The checked-in DVC outputs do not include latitude/longitude coordinates.
+    # Show a useful sector-level price chart instead of returning a broken API.
+    if not {"latitude", "longitude"}.issubset(analytics_df.columns):
+        sector_df = (
+            analytics_df.groupby("sector", as_index=False)
+            .agg(
+                price_per_sqft=("price_per_sqft", "median"),
+                listings=("price", "size"),
+            )
+            .dropna(subset=["price_per_sqft"])
+            .sort_values("listings", ascending=False)
+            .head(20)
+        )
+        if sector_df.empty:
+            return api_error("No sector analytics are available", 404)
+        fig = px.bar(
+            sector_df,
+            x="sector",
+            y="price_per_sqft",
+            color="listings",
+            title="Price per Sq Ft by Sector (Top 20)",
+            labels={
+                "sector": "Sector",
+                "price_per_sqft": "Median price per sq ft",
+                "listings": "Listings",
+            },
+        )
+        fig.update_layout(xaxis_tickangle=-35)
+        return plot_response(apply_transparent_bg(fig))
+
     try:
         group_df = (
             analytics_df.groupby("sector", as_index=False)[

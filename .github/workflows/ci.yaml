@@ -1,292 +1,138 @@
-name: CI Pipeline
+name: Gurgaon Estate CI/CD
 
 on:
   push:
+    branches: [main]
   workflow_dispatch:
-
-concurrency:
-  group: gurgaon-estate-ci-${{ github.ref }}
-  cancel-in-progress: true
 
 permissions:
   contents: read
 
+concurrency:
+  group: gurgaon-estate-production
+  cancel-in-progress: false
+
 jobs:
-  project-testing:
+  build-test-deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 60
+    env:
+      AWS_REGION: ap-southeast-2
+      AWS_ACCOUNT_ID: "970734043001"
+      ECR_REPOSITORY: gugaon_estate_ecr
+      ECR_IMAGE: 970734043001.dkr.ecr.ap-southeast-2.amazonaws.com/gugaon_estate_ecr
+      DVC_REMOTE_BUCKET: gurgaon-estate
+      CODEDEPLOY_APP: gurgaon-estate
+      CODEDEPLOY_GROUP: gurgaon-estate-deployment-group
+      TARGET_GROUP_ARN: arn:aws:elasticloadbalancing:ap-southeast-2:970734043001:targetgroup/gurgaon-estate-public-tg/REPLACE_AFTER_CREATE
+      PUBLIC_URL: http://ec2-balancer-1-1963961444.ap-southeast-2.elb.amazonaws.com:8080
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.14.10'
+          python-version: "3.14.10"
           cache: pip
-          cache-dependency-path: |
-            requirements.txt
-            flask-app/requirements.txt
+          cache-dependency-path: flask-app/requirements.txt
 
-      - name: Cache DVC artifacts
-        uses: actions/cache@v4
-        with:
-          path: .dvc/cache
-          key: ${{ runner.os }}-dvc-${{ hashFiles('dvc.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-dvc-
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Configure AWS Credentials
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-southeast-2
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Store DagsHub runtime token in SSM Parameter Store
-        if: success()
-        env:
-          DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
+      - name: Install DVC and application test dependencies
         run: |
-          test -n "$DAGSHUB_PAT"
-          aws ssm put-parameter \
-            --name "/sentiment-detector/DAGSHUB_PAT" \
-            --type SecureString \
-            --value "$DAGSHUB_PAT" \
-            --overwrite \
-            --region ap-southeast-2 >/dev/null
+          python -m pip install --upgrade pip
+          python -m pip install "dvc[s3]>=3.0,<4" -r flask-app/requirements.txt
 
-
-      - name: Pull data from S3
+      - name: Restore only the DVC artifacts required by the web application
         run: |
-          dvc pull data/raw/flats.csv.dvc
-          dvc pull data/raw/houses.csv.dvc
+          dvc pull data/processed/feature_selection model/pipeline.pkl model/recommendation
+          test -s data/processed/feature_selection/gurgaon_properties_post_feature_selection_v2.csv
+          test -s model/pipeline.pkl
+          test -s model/recommendation/recommendation_model.joblib
+          test -s model/recommendation/property_catalog.csv
 
-      - name: Run DVC pipeline
-        env:
-          DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
-        run: dvc repro
-
-      - name: Run model tests
-        env:
-          DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
+      - name: Run regression pipeline tests
         run: python -m unittest tests/test_model.py
 
-      - name: Promote model to production
-        if: success()
-        env:
-          DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
-        run: python scripts/promote_model.py
-
-      - name: Run Flask app tests
-        if: success()
-        env:
-          DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
+      - name: Run Flask API and frontend contract tests
         run: python -m unittest tests/test_flask_app.py
 
-      - name: Login to AWS ECR
-        if: success()
+      - name: Log in to Amazon ECR
         run: |
-          aws ecr get-login-password --region ap-southeast-2 \
-            | docker login --username AWS --password-stdin 970734043001.dkr.ecr.ap-southeast-2.amazonaws.com
+          aws ecr get-login-password --region "$AWS_REGION" \
+            | docker login --username AWS --password-stdin "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
 
       - name: Set up Docker Buildx
-        if: success()
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and push Docker image (with layer cache)
-        if: success()
+      - name: Build and push optimized production image
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: ./Dockerfile
           push: true
-          tags: 970734043001.dkr.ecr.ap-southeast-2.amazonaws.com/jubito27_ecr:latest
+          tags: |
+            ${{ env.ECR_IMAGE }}:latest
+            ${{ env.ECR_IMAGE }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Package CodeDeploy revision
-        if: success()
-        run: zip -r deployment.zip appspec.yml deploy/scripts
-
-      - name: Upload revision to the CodeDeploy-region S3 bucket
-        if: success()
         run: |
-          aws s3 cp deployment.zip s3://gurgaon-estate/deployment.zip --region ap-southeast-2
+          zip -r deployment.zip appspec.yml deploy/scripts
+          test -s deployment.zip
 
-      # The active Auto Scaling Group uses launch-template version 6.
-      # Wait until every desired node is refreshed, online in SSM, and running CodeDeploy agent 2.x.
-      - name: Wait for EC2 bootstrap and CodeDeploy agent readiness
-        if: success()
-        shell: bash
+      - name: Upload versioned deployment revision
         run: |
-          set -Eeuo pipefail
-          ASG_NAME="sentiment-detector-scaling-group"
-          EXPECTED_LT_VERSION="6"
-          READY="false"
+          aws s3 cp deployment.zip \
+            "s3://$DVC_REMOTE_BUCKET/deployments/$GITHUB_SHA/deployment.zip" \
+            --region "$AWS_REGION"
 
-          # Only count InService instances. During a successful instance refresh,
-          # AWS can keep a terminating old node in the ASG response temporarily.
-          for attempt in $(seq 1 90); do
-            ASG_JSON="$(aws autoscaling describe-auto-scaling-groups \
-              --auto-scaling-group-names "$ASG_NAME" --output json)"
-            DESIRED="$(jq -r '.AutoScalingGroups[0].DesiredCapacity' <<< "$ASG_JSON")"
-            mapfile -t INSTANCE_ID_ARRAY < <(jq -r --arg version "$EXPECTED_LT_VERSION" '
-              .AutoScalingGroups[0].Instances[]
-              | select(.LifecycleState == "InService"
-                       and .HealthStatus == "Healthy"
-                       and .LaunchTemplate.Version == $version)
-              | .InstanceId
-            ' <<< "$ASG_JSON")
-            READY_COUNT="${#INSTANCE_ID_ARRAY[@]}"
-
-            REFRESH_STATUS="$(aws autoscaling describe-instance-refreshes \
-              --auto-scaling-group-name "$ASG_NAME" --max-records 1 \
-              --query 'InstanceRefreshes[0].Status' --output text 2>/dev/null || echo None)"
-
-            if [[ "$REFRESH_STATUS" == "Failed" || "$REFRESH_STATUS" == "Cancelled" \
-               || "$REFRESH_STATUS" == "RollbackSuccessful" || "$REFRESH_STATUS" == "RollbackFailed" ]]; then
-              echo "EC2 instance refresh ended with status: $REFRESH_STATUS" >&2
-              aws autoscaling describe-instance-refreshes --auto-scaling-group-name "$ASG_NAME" --max-records 3
-              exit 1
-            fi
-
-            if [[ "$READY_COUNT" -eq "$DESIRED" \
-               && ( "$REFRESH_STATUS" == "Successful" || "$REFRESH_STATUS" == "None" ) ]]; then
-              echo "Found $READY_COUNT/$DESIRED healthy InService instances on launch-template v$EXPECTED_LT_VERSION."
-
-              SSM_OK="true"
-              for instance_id in "${INSTANCE_ID_ARRAY[@]}"; do
-                INSTANCE_SSM_JSON="$(aws ssm describe-instance-information \
-                  --filters "Key=InstanceIds,Values=$instance_id" \
-                  --region ap-southeast-2 --output json)"
-                PING_STATUS="$(jq -r '.InstanceInformationList[0].PingStatus // "Missing"' <<< "$INSTANCE_SSM_JSON")"
-
-                if [[ "$PING_STATUS" != "Online" ]]; then
-                  SSM_OK="false"
-                  echo "Waiting for SSM agent on $instance_id (PingStatus=$PING_STATUS)"
-                else
-                  echo "SSM is Online on $instance_id"
-                fi
-              done
-
-              if [[ "$SSM_OK" == "true" ]]; then
-                AGENT_COMMAND_ID="$(aws ssm send-command \
-                  --instance-ids "${INSTANCE_ID_ARRAY[@]}" \
-                  --document-name AWS-RunShellScript \
-                  --timeout-seconds 60 \
-                  --region ap-southeast-2 \
-                  --parameters '{"commands":["systemctl is-active --quiet codedeploy-agent && /opt/codedeploy-agent/bin/codedeploy-agent --version | grep -Eq \"^codedeploy-agent 2\\.\""]}' \
-                  --comment "Verify CodeDeploy agent 2.x before deployment" \
-                  --query 'Command.CommandId' --output text)"
-
-                AGENTS_OK="true"
-                for instance_id in "${INSTANCE_ID_ARRAY[@]}"; do
-                  COMMAND_STATUS="Pending"
-                  for command_try in $(seq 1 30); do
-                    COMMAND_STATUS="$(aws ssm get-command-invocation \
-                      --command-id "$AGENT_COMMAND_ID" --instance-id "$instance_id" \
-                      --region ap-southeast-2 --query Status --output text 2>/dev/null || echo Pending)"
-                    if [[ "$COMMAND_STATUS" == "Success" ]]; then
-                      echo "CodeDeploy agent 2.x is active on $instance_id"
-                      break
-                    fi
-                    if [[ "$COMMAND_STATUS" == "Failed" || "$COMMAND_STATUS" == "TimedOut" \
-                       || "$COMMAND_STATUS" == "Cancelled" ]]; then
-                      aws ssm get-command-invocation \
-                        --command-id "$AGENT_COMMAND_ID" --instance-id "$instance_id" \
-                        --region ap-southeast-2 --output json || true
-                      AGENTS_OK="false"
-                      break
-                    fi
-                    sleep 2
-                  done
-                  if [[ "$COMMAND_STATUS" != "Success" ]]; then
-                    AGENTS_OK="false"
-                    echo "CodeDeploy agent is not ready on $instance_id (status=$COMMAND_STATUS)"
-                  fi
-                done
-
-                if [[ "$AGENTS_OK" == "true" ]]; then
-                  READY="true"
-                  break
-                fi
-              fi
-            else
-              echo "Waiting: refresh=$REFRESH_STATUS, healthy InService v$EXPECTED_LT_VERSION instances=$READY_COUNT/$DESIRED"
-              jq -r '.AutoScalingGroups[0].Instances[] | [.InstanceId,.LifecycleState,.HealthStatus,.LaunchTemplate.Version] | @tsv' <<< "$ASG_JSON"
-            fi
-            sleep 20
-          done
-
-          if [[ "$READY" != "true" ]]; then
-            echo "EC2 fleet did not become ready within 30 minutes." >&2
-            aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names "$ASG_NAME"
-            aws autoscaling describe-instance-refreshes --auto-scaling-group-name "$ASG_NAME" --max-records 3
-            aws ssm describe-instance-information --region ap-southeast-2 --output table
-            exit 1
-          fi
-
-      - name: Create CodeDeploy deployment
-        if: success()
-        id: codedeploy
+      - name: Deploy Gurgaon Estate to its dedicated Auto Scaling Group
+        id: deploy
         run: |
           DEPLOYMENT_ID="$(aws deploy create-deployment \
-            --application-name sentiment-detector \
+            --application-name "$CODEDEPLOY_APP" \
+            --deployment-group-name "$CODEDEPLOY_GROUP" \
             --deployment-config-name CodeDeployDefault.OneAtATime \
-            --deployment-group-name sentiment-detector-deployment-group \
-            --s3-location bucket=mini-project-bucket-jubito27,key=deployment.zip,bundleType=zip \
+            --s3-location "bucket=$DVC_REMOTE_BUCKET,key=deployments/$GITHUB_SHA/deployment.zip,bundleType=zip" \
             --file-exists-behavior OVERWRITE \
-            --region ap-southeast-2 \
+            --region "$AWS_REGION" \
             --query deploymentId --output text)"
           echo "deployment_id=$DEPLOYMENT_ID" >> "$GITHUB_OUTPUT"
-          echo "Created CodeDeploy deployment: $DEPLOYMENT_ID"
+          echo "Started Gurgaon Estate deployment: $DEPLOYMENT_ID"
 
-      - name: Wait for CodeDeploy deployment to succeed
-        if: success()
+      - name: Wait for CodeDeploy deployment
         env:
-          DEPLOYMENT_ID: ${{ steps.codedeploy.outputs.deployment_id }}
+          DEPLOYMENT_ID: ${{ steps.deploy.outputs.deployment_id }}
         run: |
           if ! aws deploy wait deployment-successful \
-            --deployment-id "$DEPLOYMENT_ID" --region ap-southeast-2; then
-            echo "CodeDeploy deployment failed. AWS diagnostics:"
+            --deployment-id "$DEPLOYMENT_ID" --region "$AWS_REGION"; then
             aws deploy get-deployment --deployment-id "$DEPLOYMENT_ID" \
-              --region ap-southeast-2 \
-              --query 'deploymentInfo.{status:status,error:errorInformation,overview:deploymentOverview}' \
-              --output json || true
+              --region "$AWS_REGION" --output json || true
             exit 1
           fi
 
-      - name: Wait for all ALB targets to become healthy
-        if: success()
+      - name: Verify public target health and website endpoint
         run: |
-          TARGET_GROUP_ARN="arn:aws:elasticloadbalancing:ap-southeast-2:970734043001:targetgroup/sentiment-scaling-group-1/9a96095d1074b562"
           for attempt in $(seq 1 60); do
-            DESIRED="$(aws autoscaling describe-auto-scaling-groups \
-              --auto-scaling-group-names sentiment-detector-scaling-group \
-              --query 'AutoScalingGroups[0].DesiredCapacity' --output text)"
-            HEALTHY="$(aws elbv2 describe-target-health --target-group-arn "$TARGET_GROUP_ARN" \
-              --query 'length(TargetHealthDescriptions[?TargetHealth.State==`healthy`])' --output text)"
-            echo "Healthy ALB targets: $HEALTHY / $DESIRED"
-            if [[ "$HEALTHY" -ge "$DESIRED" ]]; then
+            HEALTHY="$(aws elbv2 describe-target-health \
+              --target-group-arn "$TARGET_GROUP_ARN" \
+              --query 'length(TargetHealthDescriptions[?TargetHealth.State==`healthy`])' \
+              --output text --region "$AWS_REGION")"
+            echo "Healthy Gurgaon Estate targets: $HEALTHY"
+            if [[ "$HEALTHY" -ge 1 ]] && curl --fail --silent --show-error "$PUBLIC_URL/health"; then
               exit 0
             fi
-            sleep 15
+            sleep 10
           done
-          echo "Not all EC2 targets became healthy in the ALB target group." >&2
-          aws elbv2 describe-target-health --target-group-arn "$TARGET_GROUP_ARN"
+          echo "Gurgaon Estate did not become healthy on the public endpoint." >&2
+          aws elbv2 describe-target-health --target-group-arn "$TARGET_GROUP_ARN" --region "$AWS_REGION"
           exit 1
-
-      - name: Enable ELB health checks after successful deployment
-        if: success()
-        run: |
-          aws autoscaling update-auto-scaling-group \
-            --auto-scaling-group-name sentiment-detector-scaling-group \
-            --health-check-type ELB \
-            --health-check-grace-period 900 \
-            --region ap-southeast-2

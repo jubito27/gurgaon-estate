@@ -1,95 +1,45 @@
-"""Tests for the model produced by this repository's DVC pipeline.
+"""Regression-model smoke tests for the DVC artifacts used by the web app."""
 
-These tests intentionally use the local model and transformed holdout data
-created by the current pipeline. They do not depend on an unrelated
-DagsHub repository or a vectorizer artifact that this project does not build.
-"""
-
-import pickle
 import unittest
 from pathlib import Path
 
+import joblib
+import numpy as np
 import pandas as pd
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
-
 
 ROOT = Path(__file__).resolve().parents[1]
+FEATURES_PATH = (
+    ROOT
+    / "data"
+    / "processed"
+    / "feature_selection"
+    / "gurgaon_properties_post_feature_selection_v2.csv"
+)
+PIPELINE_PATH = ROOT / "model" / "pipeline.pkl"
 
 
-class TestModelLoading(unittest.TestCase):
+class TestRegressionPipeline(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        model_path = ROOT / "model" / "model.pkl"
-        x_test_path = ROOT / "data" / "transformed" / "x_test.csv"
-        y_test_path = ROOT / "data" / "transformed" / "y_test.csv"
-
-        for path in (model_path, x_test_path, y_test_path):
+        for path in (FEATURES_PATH, PIPELINE_PATH):
             if not path.is_file():
                 raise FileNotFoundError(
-                    f"Required DVC pipeline artifact is missing: {path}"
+                    f"Required DVC deployment artifact is missing: {path}"
                 )
+        cls.pipeline = joblib.load(PIPELINE_PATH)
+        cls.frame = pd.read_csv(FEATURES_PATH)
+        if cls.frame.empty or "price" not in cls.frame:
+            raise ValueError("Feature-selection data is empty or has no price target")
+        cls.features = cls.frame.drop(columns=["price"]).head(25)
 
-        with model_path.open("rb") as model_file:
-            cls.model = pickle.load(model_file)
+    def test_pipeline_loads(self):
+        self.assertIsNotNone(self.pipeline)
+        self.assertTrue(callable(getattr(self.pipeline, "predict", None)))
 
-        cls.x_test = pd.read_csv(x_test_path)
-        y_test_frame = pd.read_csv(y_test_path)
-
-        if y_test_frame.shape[1] != 1:
-            raise ValueError(
-                "Expected y_test.csv to contain exactly one target column; "
-                f"found {y_test_frame.shape[1]} columns."
-            )
-
-        cls.y_test = y_test_frame.iloc[:, 0]
-
-        if cls.x_test.empty or cls.y_test.empty:
-            raise ValueError("The transformed holdout test data is empty.")
-
-        if len(cls.x_test) != len(cls.y_test):
-            raise ValueError(
-                "Feature/target row counts differ: "
-                f"{len(cls.x_test)} != {len(cls.y_test)}"
-            )
-
-    def test_model_loaded_properly(self):
-        self.assertIsNotNone(self.model)
-        self.assertTrue(callable(getattr(self.model, "predict", None)))
-
-    def test_model_input_signature(self):
-        expected_features = getattr(self.model, "n_features_in_", None)
-        self.assertIsNotNone(
-            expected_features,
-            "The trained model does not expose n_features_in_.",
-        )
-        self.assertEqual(
-            self.x_test.shape[1],
-            expected_features,
-            "Holdout feature count does not match the trained model.",
-        )
-
-        predictions = self.model.predict(self.x_test)
-        self.assertEqual(len(predictions), len(self.x_test))
-
-    def test_model_performance(self):
-        predictions = self.model.predict(self.x_test)
-
-        accuracy = accuracy_score(self.y_test, predictions)
-        precision = precision_score(
-            self.y_test, predictions, average="macro", zero_division=0
-        )
-        recall = recall_score(
-            self.y_test, predictions, average="macro", zero_division=0
-        )
-        f1 = f1_score(
-            self.y_test, predictions, average="macro", zero_division=0
-        )
-
-        minimum_score = 0.0
-        self.assertGreaterEqual(accuracy, minimum_score)
-        self.assertGreaterEqual(precision, minimum_score)
-        self.assertGreaterEqual(recall, minimum_score)
-        self.assertGreaterEqual(f1, minimum_score)
+    def test_pipeline_predicts_finite_prices(self):
+        predictions = np.asarray(self.pipeline.predict(self.features)).reshape(-1)
+        self.assertEqual(len(predictions), len(self.features))
+        self.assertTrue(np.isfinite(predictions).all())
 
 
 if __name__ == "__main__":

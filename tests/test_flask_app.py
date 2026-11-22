@@ -51,7 +51,31 @@ class FlaskAppTests(unittest.TestCase):
     def test_home_page(self):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"<title>Gurgaon Real Estate Analytics</title>", response.data)
+        self.assertIn(b"Gurgaon Real Estate Analytics", response.data)
+        self.assertIn(b"/static/style/style.css", response.data)
+
+    def test_health_endpoint(self):
+        response = self.client.get("/health")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), {"status": "ok"})
+
+    def test_analytics_endpoints_render(self):
+        endpoints = (
+            "/api/analytics/geomap",
+            "/api/analytics/scatter?property_type=flat",
+            "/api/analytics/pie",
+            "/api/analytics/boxplot",
+            "/api/analytics/wordcloud",
+            "/api/analytics/distplot",
+        )
+        for endpoint in endpoints:
+            with self.subTest(endpoint=endpoint):
+                response = self.client.get(endpoint)
+                self.assertEqual(
+                    response.status_code,
+                    200,
+                    msg=f"{endpoint}: {response.get_data(as_text=True)[:300]}",
+                )
 
     def test_options_use_project_data(self):
         response = self.client.get("/api/options")
