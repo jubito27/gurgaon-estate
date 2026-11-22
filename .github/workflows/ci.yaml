@@ -92,6 +92,7 @@ jobs:
 
       - name: Verify CPU-only runtime and report image size
         run: |
+          docker pull "${ECR_IMAGE}:${GITHUB_SHA}"
           IMAGE_BYTES="$(docker image inspect --format='{{.Size}}' "${ECR_IMAGE}:${GITHUB_SHA}")"
           IMAGE_MIB="$((IMAGE_BYTES / 1024 / 1024))"
           docker run --rm "${ECR_IMAGE}:${GITHUB_SHA}" python -c 'import importlib.metadata as metadata; import pyarrow, xgboost; names={d.metadata["Name"].lower() for d in metadata.distributions()}; assert "xgboost-cpu" in names, "CPU-only XGBoost wheel is missing"; assert not any(name.startswith("nvidia-") for name in names), "Unexpected NVIDIA runtime dependency found"; print("CPU-only XGBoost", metadata.version("xgboost-cpu"), "| PyArrow", pyarrow.__version__, "| XGBoost", xgboost.__version__)'
