@@ -9,5 +9,5 @@ plotly>=6.0,<8
 seaborn>=0.13,<1
 wordcloud>=1.9,<2
 scikit-learn>=1.7,<2
-xgboost>=3.0,<4
+xgboost-cpu>=3.0,<4
 category-encoders>=2.8,<3
