@@ -68,8 +68,21 @@ stages:
     - src/models/train_model.py
     - params.yaml
     outs:
-    - model/
-  11_model_prediction:
+    - model/pipeline.pkl
+    - model/preprocessor.pkl
+    - model/model_metadata.json
+  11_model_registry:
+    cmd: python src/models/registry_model.py --model-dir model --output-path 
+      reports/model_registry/registration.json --model-name 
+      gurgaon-real-estate-pipeline
+    deps:
+    - model/pipeline.pkl
+    - model/preprocessor.pkl
+    - model/model_metadata.json
+    - src/models/registry_model.py
+    outs:
+    - reports/model_registry/registration.json
+  12_model_prediction:
     cmd: python src/models/predict_model.py --input-path 
       data/processed/feature_selection/gurgaon_properties_post_feature_selection_v2.csv
       --output-path reports/predictions/predictions.csv --output-dir 
@@ -77,9 +90,18 @@ stages:
     deps:
     - data/processed/feature_selection/gurgaon_properties_post_feature_selection_v2.csv
     - src/models/predict_model.py
-    - model/
+    - model/pipeline.pkl
+    - model/preprocessor.pkl
+    - model/model_metadata.json
     outs:
     - reports/predictions/predictions.csv
+  13_recommendation:
+    cmd: python src/models/recommendation.py
+    deps:
+    - data/raw/appartments.csv
+    - src/models/recommendation.py
+    outs:
+    - model/recommendation/
 params:
 - dvclive/params.yaml
 metrics:

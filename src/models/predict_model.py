@@ -48,22 +48,25 @@ logger = setup_logging(logging.INFO)
 
 # ---------------- MLflow configuration ----------------
 
-DAGSHUB_REPO_OWNER = "jubito27"
-DAGSHUB_REPO_NAME = "gurgaon-estate"
-MLFLOW_TRACKING_URI = "https://dagshub.com/jubito27/gurgaon-estate.mlflow"
 MLFLOW_EXPERIMENT_NAME = "dvc-pipeline"
 
 
 def configure_mlflow() -> None:
     """Initialize DagsHub and configure the MLflow tracking server."""
     try:
-        dagshub.init(
-            repo_owner=DAGSHUB_REPO_OWNER,
-            repo_name=DAGSHUB_REPO_NAME,
-            mlflow=True,
-        )
 
-        mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+        dagshub_token = os.getenv("DAGSHUB_PAT")
+        if not dagshub_token:
+            raise EnvironmentError("DAGSHUB_PAT environment variable is not set")
+
+        os.environ["MLFLOW_TRACKING_USERNAME"] = dagshub_token
+        os.environ["MLFLOW_TRACKING_PASSWORD"] = dagshub_token
+
+        dagshub_url = "https://dagshub.com"
+        repo_owner = "jubito27"
+        repo_name = "gurgaon-estate"
+        # Set up MLflow tracking URI
+        mlflow.set_tracking_uri(f'{dagshub_url}/{repo_owner}/{repo_name}.mlflow')
         mlflow.set_experiment(MLFLOW_EXPERIMENT_NAME)
 
         logger.info("MLflow tracking configured successfully")
@@ -72,7 +75,6 @@ def configure_mlflow() -> None:
     except Exception as error:
         logger.exception("Failed to configure MLflow tracking")
         raise RuntimeError(f"Failed to configure MLflow tracking: {error}") from error
-
 
 # ---------------- Utility functions ----------------
 

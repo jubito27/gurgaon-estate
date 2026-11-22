@@ -186,11 +186,21 @@ stages:
       size: 14275
       isexec: true
     outs:
-    - path: model/
+    - path: model/model_metadata.json
       hash: md5
-      md5: c9211ae5d2c1aef7bf4b8f26d8419c7f.dir
-      size: 2542776
-      nfiles: 3
+      md5: 31705ea212c5a15206df517dd3634492
+      size: 1350
+      isexec: true
+    - path: model/pipeline.pkl
+      hash: md5
+      md5: f4cd654756f23b8c5c6af20997012ef4
+      size: 2514124
+      isexec: true
+    - path: model/preprocessor.pkl
+      hash: md5
+      md5: 7119bc668f478a16034256f8efc0dab2
+      size: 27302
+      isexec: true
   11_model_prediction:
     cmd: python src/models/predict_model.py --input-path 
       data/processed/feature_selection/gurgaon_properties_post_feature_selection_v2.csv
@@ -210,12 +220,100 @@ stages:
       nfiles: 3
     - path: src/models/predict_model.py
       hash: md5
-      md5: f52b4787f565ba9f5fa431883bd3ce54
-      size: 14109
+      md5: f29488878725213b568e39690cc7b2e1
+      size: 14291
       isexec: true
     outs:
     - path: reports/predictions/predictions.csv
       hash: md5
-      md5: 28925cd9b531d571ea60e4461800335b
+      md5: 04c9fa7c497e44bf45983f8f41396003
       size: 463258
       isexec: true
+  11_model_registry:
+    cmd: python src/models/registry_model.py --model-dir model --output-path 
+      reports/model_registry/registration.json --model-name 
+      gurgaon-real-estate-pipeline
+    deps:
+    - path: model/model_metadata.json
+      hash: md5
+      md5: 31705ea212c5a15206df517dd3634492
+      size: 1350
+      isexec: true
+    - path: model/pipeline.pkl
+      hash: md5
+      md5: f4cd654756f23b8c5c6af20997012ef4
+      size: 2514124
+      isexec: true
+    - path: model/preprocessor.pkl
+      hash: md5
+      md5: 7119bc668f478a16034256f8efc0dab2
+      size: 27302
+      isexec: true
+    - path: src/models/registry_model.py
+      hash: md5
+      md5: 7ad1dac24f1a728457cd5729eb026221
+      size: 6912
+      isexec: true
+    outs:
+    - path: reports/model_registry/registration.json
+      hash: md5
+      md5: f505e2eba753e4eec837bfa053b403ab
+      size: 205
+      isexec: true
+  12_model_prediction:
+    cmd: python src/models/predict_model.py --input-path 
+      data/processed/feature_selection/gurgaon_properties_post_feature_selection_v2.csv
+      --output-path reports/predictions/predictions.csv --output-dir 
+      reports/predictions --model-dir model
+    deps:
+    - path: 
+        data/processed/feature_selection/gurgaon_properties_post_feature_selection_v2.csv
+      hash: md5
+      md5: 435d3b1662a02480e6daac07bc5b6694
+      size: 263823
+      isexec: true
+    - path: model/model_metadata.json
+      hash: md5
+      md5: 31705ea212c5a15206df517dd3634492
+      size: 1350
+      isexec: true
+    - path: model/pipeline.pkl
+      hash: md5
+      md5: f4cd654756f23b8c5c6af20997012ef4
+      size: 2514124
+      isexec: true
+    - path: model/preprocessor.pkl
+      hash: md5
+      md5: 7119bc668f478a16034256f8efc0dab2
+      size: 27302
+      isexec: true
+    - path: src/models/predict_model.py
+      hash: md5
+      md5: f29488878725213b568e39690cc7b2e1
+      size: 14291
+      isexec: true
+    outs:
+    - path: reports/predictions/predictions.csv
+      hash: md5
+      md5: 57fc8bfe0b2e7551c7abd285736f8205
+      size: 463258
+      isexec: true
+  13_recommendation:
+    cmd: python src/models/recommendation.py
+    deps:
+    - path: data/raw/appartments.csv
+      hash: md5
+      md5: 0973dd4bd85442c26003fb77c63f3544
+      size: 272474
+      isexec: true
+    - path: src/models/recommendation.py
+      hash: md5
+      md5: 43c926a7f29f35bbe4cfad282ff31e32
+      size: 18537
+      isexec: true
+    outs:
+    - path: model/recommendation/
+      hash: md5
+      md5: 63c8f968abf9f7635ee2f55198edafdd.dir
+      size: 2214749
+      nfiles: 2

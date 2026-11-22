@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gurgaon Real Estate Analytics — Intelligence Suite</title>
+    <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+                    },
+                    colors: {
+                        obsidian: {
+                            950: '#050811',
+                            900: '#0a0f1e',
+                            850: '#0f172a',
+                            800: '#141e33',
+                        }
+                    }
+                }
+            }
+        };
+    </script>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="bg-obsidian-950 text-slate-200 font-sans min-h-screen flex flex-col lg:flex-row selection:bg-indigo-500 selection:text-white">
+
+    <!-- Ambient Background Glow -->
+    <div class="ambient-bg" aria-hidden="true">
+        <div class="ambient-orb ambient-orb-1"></div>
+        <div class="ambient-orb ambient-orb-2"></div>
+        <div class="ambient-orb ambient-orb-3"></div>
+    </div>
+
+    <!-- Mobile Drawer Backdrop -->
+    <div id="sidebar-backdrop" class="fixed inset-0 bg-slate-950/75 backdrop-blur-sm z-30 opacity-0 pointer-events-none transition-opacity duration-300 lg:hidden" aria-hidden="true"></div>
+
+    <!-- Interactive Responsive Sidebar -->
+    <aside id="app-sidebar" aria-label="Primary Navigation" class="fixed lg:sticky top-0 left-0 h-[100dvh] w-[272px] -translate-x-full lg:translate-x-0 bg-obsidian-900/95 backdrop-blur-2xl border-r border-slate-800/80 flex flex-col justify-between z-40 shadow-2xl shrink-0">
+        <!-- Desktop Collapse / Expand Toggle Button -->
+        <button id="sidebar-collapse-btn" type="button" aria-label="Toggle compact sidebar" title="Toggle sidebar (Ctrl+B)" class="hidden lg:flex items-center justify-center w-7 h-7 rounded-full bg-slate-900 border border-slate-700/90 text-slate-300 hover:text-white hover:border-indigo-400 hover:bg-indigo-600 shadow-lg absolute -right-3.5 top-20 z-50 transition-all duration-300">
+            <svg id="collapse-icon" class="w-3.5 h-3.5 transition-transform duration-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
+
+        <div>
+            <!-- Brand Header -->
+            <div class="brand-wrap h-16 flex items-center justify-between px-5 border-b border-slate-800/80">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 via-violet-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-500/30 shrink-0 text-white">
+                        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>
+                    </div>
+                    <div class="sidebar-label min-w-0">
+                        <h1 class="text-base font-bold tracking-tight text-white leading-tight truncate">Gurgaon RE</h1>
+                        <p class="text-[11px] font-medium text-cyan-400/90 tracking-wide uppercase">Analytics Suite</p>
+                    </div>
+                </div>
+                <button id="mobile-drawer-close" type="button" aria-label="Close navigation menu" class="lg:hidden w-9 h-9 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 flex items-center justify-center transition-colors">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+            </div>
+
+            <!-- Navigation Items -->
+            <div class="px-3 pt-5">
+                <p class="sidebar-label px-3 mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Workspace</p>
+                <nav class="space-y-1.5" role="tablist" aria-label="Dashboard Sections">
+                    <button type="button" id="tab-predictor" data-tab="predictor" role="tab" aria-selected="true" aria-controls="predictor-section" class="nav-btn is-active w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl border border-transparent text-sm font-medium text-slate-300 hover:bg-slate-800/70 hover:text-white">
+                        <svg class="w-5 h-5 text-indigo-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></svg>
+                        <span class="sidebar-label flex-1 text-left">Price Predictor</span>
+                        <span class="sidebar-badge text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-400/20">ML</span>
+                        <span class="nav-tooltip" role="tooltip">Price Predictor (1)</span>
+                    </button>
+
+                    <button type="button" id="tab-analytics" data-tab="analytics" role="tab" aria-selected="false" aria-controls="analytics-section" class="nav-btn w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl border border-transparent text-sm font-medium text-slate-400 hover:bg-slate-800/70 hover:text-white">
+                        <svg class="w-5 h-5 text-cyan-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+                        <span class="sidebar-label flex-1 text-left">Analytics App</span>
+                        <span class="sidebar-badge text-[10px] font-semibold px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-400/20">6 Views</span>
+                        <span class="nav-tooltip" role="tooltip">Analytics App (2)</span>
+                    </button>
+
+                    <button type="button" id="tab-recommender" data-tab="recommender" role="tab" aria-selected="false" aria-controls="recommender-section" class="nav-btn w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl border border-transparent text-sm font-medium text-slate-400 hover:bg-slate-800/70 hover:text-white">
+                        <svg class="w-5 h-5 text-emerald-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                        <span class="sidebar-label flex-1 text-left">Recommender</span>
+                        <span class="sidebar-badge text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-400/20">AI</span>
+                        <span class="nav-tooltip" role="tooltip">Recommender (3)</span>
+                    </button>
+                </nav>
+            </div>
+        </div>
+
+        <!-- Sidebar Footer -->
+        <div class="p-3.5 border-t border-slate-800/80">
+            <div class="sidebar-footer-expanded rounded-xl bg-slate-900/90 border border-slate-800 p-3.5 space-y-2.5">
+                <div class="flex items-center justify-between">
+                    <span id="api-status-badge" class="inline-flex items-center gap-2 text-xs font-semibold text-amber-400">
+                        <span id="api-status-dot" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                        <span id="api-status-text">Connecting API...</span>
+                    </span>
+                    <span class="text-[10px] font-mono text-slate-500">Flask</span>
+                </div>
+                <p id="api-status-sub" class="text-[11px] leading-relaxed text-slate-400">Fetching live options from /api/options</p>
+                <div class="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-800/80">
+                    <span>Shortcuts: <kbd class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">1</kbd> <kbd class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">2</kbd> <kbd class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">3</kbd></span>
+                    <kbd class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">Ctrl+B</kbd>
+                </div>
+            </div>
+            <div class="sidebar-footer-mini hidden items-center justify-center py-2">
+                <span id="api-status-dot-mini" class="w-2.5 h-2.5 rounded-full bg-amber-400" title="Flask API Status"></span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Viewport Wrapper -->
+    <div class="flex-1 flex flex-col min-w-0 relative z-10">
+        <!-- Mobile / Tablet Sticky Top Header -->
+        <header class="lg:hidden sticky top-0 z-20 h-16 px-4 bg-obsidian-900/85 backdrop-blur-xl border-b border-slate-800/80 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <button id="mobile-menu-btn" type="button" aria-label="Open navigation menu" aria-expanded="false" aria-controls="app-sidebar" class="w-10 h-10 rounded-xl bg-slate-800/80 border border-slate-700/70 flex flex-col items-center justify-center gap-1.5 text-slate-200 hover:border-indigo-400 transition-colors">
+                    <span class="hamburger-line line-top w-5 h-0.5 bg-current rounded-full"></span>
+                    <span class="hamburger-line line-mid w-5 h-0.5 bg-current rounded-full"></span>
+                    <span class="hamburger-line line-bot w-5 h-0.5 bg-current rounded-full"></span>
+                </button>
+                <div>
+                    <p class="text-sm font-bold text-white leading-tight">Gurgaon RE</p>
+                    <p id="mobile-active-label" class="text-[11px] font-medium text-indigo-400">Price Predictor</p>
+                </div>
+            </div>
+            <span id="mobile-api-pill" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-300 border border-amber-500/25">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                Syncing
+            </span>
+        </header>
+
+        <!-- Scrollable Main Content -->
+        <main class="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-10 py-6 lg:py-9 pb-24 sm:pb-10">
+
+            <!-- SECTION 1: PRICE PREDICTOR -->
+            <section id="predictor-section" class="section-enter max-w-5xl mx-auto space-y-6">
+                <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                    <div>
+                        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-500/15 text-indigo-300 border border-indigo-400/25 mb-3">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                            ML Valuation Engine
+                        </span>
+                        <h2 class="text-2xl sm:text-3xl font-bold text-white tracking-tight">Predict Property Price</h2>
+                        <p class="mt-1.5 text-sm text-slate-400">Enter property details below to query your trained Flask ML pipeline for an estimated price range.</p>
+                    </div>
+                </div>
+
+                <!-- Predictor Card -->
+                <div class="glass-panel rounded-2xl overflow-hidden">
+                    <div class="px-6 sm:px-8 py-5 border-b border-slate-800/80 bg-slate-900/50 flex flex-wrap items-center justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-xl bg-indigo-500/15 border border-indigo-400/25 flex items-center justify-center text-indigo-400">
+                                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/></svg>
+                            </div>
+                            <div>
+                                <h3 class="text-base font-semibold text-white">Property Specifications</h3>
+                                <p class="text-xs text-slate-400">Dropdown values dynamically loaded from <code class="text-indigo-300">/api/options</code></p>
+                            </div>
+                        </div>
+                        <button type="button" id="reset-predict-btn" class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400 hover:text-white px-3 py-1.5 rounded-lg hover:bg-slate-800 transition-colors">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                            Reset
+                        </button>
+                    </div>
+
+                    <div class="p-6 sm:p-8">
+                        <form id="predict-form" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                            <div>
+                                <label for="p_type" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Property Type</label>
+                                <select id="p_type" class="form-control">
+                                    <option value="flat">Flat</option>
+                                    <option value="house">House</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="p_sector" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Sector</label>
+                                <select id="p_sector" class="form-control"></select>
+                            </div>
+                            <div>
+                                <label for="p_bed" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Bedrooms</label>
+                                <select id="p_bed" class="form-control"></select>
+                            </div>
+                            <div>
+                                <label for="p_bath" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Bathrooms</label>
+                                <select id="p_bath" class="form-control"></select>
+                            </div>
+                            <div>
+                                <label for="p_balc" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Balconies</label>
+                                <select id="p_balc" class="form-control"></select>
+                            </div>
+                            <div>
+                                <label for="p_age" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Property Age</label>
+                                <select id="p_age" class="form-control"></select>
+                            </div>
+                            <div>
+                                <label for="p_area" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Built-Up Area (sq.ft)</label>
+                                <input type="number" id="p_area" min="1" step="any" required class="form-control placeholder-slate-500" placeholder="e.g. 1500">
+                            </div>
+                            <div>
+                                <label for="p_servant" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Servant Room</label>
+                                <select id="p_servant" class="form-control">
+                                    <option value="0">No</option>
+                                    <option value="1">Yes</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="p_store" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Store Room</label>
+                                <select id="p_store" class="form-control">
+                                    <option value="0">No</option>
+                                    <option value="1">Yes</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="p_furnish" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Furnishing Type</label>
+                                <select id="p_furnish" class="form-control"></select>
+                            </div>
+                            <div>
+                                <label for="p_luxury" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Luxury Category</label>
+                                <select id="p_luxury" class="form-control"></select>
+                            </div>
+                            <div>
+                                <label for="p_floor" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Floor Category</label>
+                                <select id="p_floor" class="form-control"></select>
+                            </div>
+
+                            <div class="col-span-full mt-2 pt-5 border-t border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <p class="inline-flex items-center gap-1.5 text-xs text-slate-400">
+                                    <svg class="w-4 h-4 text-indigo-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                                    Returns ±0.22 Cr confidence band via <code class="text-indigo-300">POST /api/predict</code>
+                                </p>
+                                <button type="submit" id="predict-submit-btn" class="w-full sm:w-auto inline-flex justify-center items-center gap-2.5 px-8 py-3 text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-indigo-600 via-violet-600 to-cyan-600 hover:from-indigo-500 hover:via-violet-500 hover:to-cyan-500 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-all shadow-lg shadow-indigo-900/40 active:scale-[0.98] disabled:opacity-60">
+                                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                                    <span id="predict-text">Predict Price</span>
+                                    <div id="predict-spinner" class="spinner hidden"></div>
+                                </button>
+                            </div>
+                        </form>
+
+                        <!-- Inline Prediction Error Banner -->
+                        <div id="prediction-error" class="hidden mt-6 rounded-xl bg-rose-950/50 border border-rose-500/40 p-4 text-sm text-rose-200 flex items-center gap-3">
+                            <svg class="w-5 h-5 text-rose-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+                            <span id="prediction-error-text"></span>
+                        </div>
+
+                        <!-- Prediction Result Card -->
+                        <div id="prediction-result" class="hidden mt-7 rounded-2xl bg-gradient-to-br from-emerald-950/60 via-slate-900/90 to-cyan-950/40 border border-emerald-500/35 p-6 shadow-xl">
+                            <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                                <div class="flex items-start gap-4">
+                                    <div class="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-400/30 flex items-center justify-center text-emerald-400 shrink-0">
+                                        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg>
+                                    </div>
+                                    <div>
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <p class="text-xs font-semibold text-emerald-400 uppercase tracking-widest">Estimated Market Value</p>
+                                            <span id="result-tier-badge" class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-400/25">ML Estimate</span>
+                                        </div>
+                                        <p class="text-3xl sm:text-4xl font-extrabold text-white mt-1 tracking-tight">₹ <span id="price-output">0.00</span> Cr</p>
+                                        <p id="price-meta-line" class="text-xs text-slate-400 mt-1.5"></p>
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-3 sm:min-w-[240px]">
+                                    <div class="rounded-xl bg-slate-950/60 border border-slate-800 px-3.5 py-2.5">
+                                        <p class="text-[10px] uppercase tracking-wider text-slate-400">Implied Rate</p>
+                                        <p id="result-ppsqft" class="text-sm font-bold text-cyan-300 mt-0.5">—</p>
+                                    </div>
+                                    <div class="rounded-xl bg-slate-950/60 border border-slate-800 px-3.5 py-2.5">
+                                        <p class="text-[10px] uppercase tracking-wider text-slate-400">Midpoint</p>
+                                        <p id="result-midpoint" class="text-sm font-bold text-slate-200 mt-0.5">—</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Visual Market Position Bar -->
+                            <div class="mt-5 pt-4 border-t border-emerald-500/20">
+                                <div class="flex justify-between text-[11px] text-slate-400 mb-1.5">
+                                    <span>Value Band (₹0.5 Cr)</span>
+                                    <span id="result-position-label" class="text-emerald-300 font-medium">Market Position</span>
+                                    <span>Ultra-Luxury (₹12+ Cr)</span>
+                                </div>
+                                <div class="h-2 rounded-full bg-slate-800 overflow-hidden">
+                                    <div id="result-position-bar" class="h-full rounded-full bg-gradient-to-r from-indigo-500 via-cyan-400 to-emerald-400 transition-all duration-700" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 2: ANALYTICS APP -->
+            <section id="analytics-section" class="hidden-section max-w-7xl mx-auto space-y-6">
+                <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+                    <div>
+                        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-cyan-500/15 text-cyan-300 border border-cyan-400/25 mb-3">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+                            Live Flask Visualizations
+                        </span>
+                        <h2 class="text-2xl sm:text-3xl font-bold text-white tracking-tight">Market Analytics</h2>
+                        <p class="text-sm text-slate-400 mt-1">Interactive Plotly &amp; Seaborn visualizations served live from your Gurgaon dataset.</p>
+                    </div>
+                    <button type="button" id="refresh-analytics-btn" class="self-start sm:self-auto inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors">
+                        <svg class="w-3.5 h-3.5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+                        Reload Charts
+                    </button>
+                </div>
+
+                <!-- Geomap Card -->
+                <div class="glass-panel rounded-2xl p-5 sm:p-6">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+                        <div>
+                            <h3 class="text-lg font-bold text-white">Sector Price per Sqft Geomap</h3>
+                            <p class="text-xs text-slate-400">Served from <code class="text-cyan-300">/api/analytics/geomap</code></p>
+                        </div>
+                    </div>
+                    <div class="relative rounded-xl overflow-hidden border border-slate-700/80 bg-slate-900/60" style="height: 410px;">
+                        <div id="geomap-loader" class="chart-loader absolute inset-0 flex flex-col items-center justify-center gap-3 text-xs text-slate-400 z-10">
+                            <div class="spinner"></div>
+                            <span>Loading sector geomap...</span>
+                        </div>
+                        <div id="plot-geomap" class="w-full h-full"></div>
+                    </div>
+                </div>
+
+                <!-- Scatter & Pie -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="glass-panel rounded-2xl p-5 sm:p-6">
+                        <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
+                            <div>
+                                <h3 class="text-lg font-bold text-white">Area vs Price</h3>
+                                <p class="text-xs text-slate-400">Built-up area vs price by property type</p>
+                            </div>
+                            <select id="plot-scatter-select" aria-label="Filter Area vs Price by Property Type" class="bg-slate-900 border border-slate-700 text-white rounded-lg py-1.5 px-3 text-xs font-medium outline-none focus:border-indigo-500">
+                                <option value="flat">Flat</option>
+                                <option value="house">House</option>
+                            </select>
+                        </div>
+                        <div class="relative h-80 w-full">
+                            <div id="scatter-loader" class="chart-loader absolute inset-0 flex items-center justify-center z-10"><div class="spinner"></div></div>
+                            <div id="plot-scatter" class="h-80 w-full"></div>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel rounded-2xl p-5 sm:p-6">
+                        <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
+                            <div>
+                                <h3 class="text-lg font-bold text-white">BHK Distribution</h3>
+                                <p class="text-xs text-slate-400">Share of bedroom configurations by sector</p>
+                            </div>
+                            <select id="plot-pie-select" aria-label="Filter BHK Distribution by Sector" class="bg-slate-900 border border-slate-700 text-white rounded-lg py-1.5 px-3 text-xs font-medium outline-none focus:border-indigo-500"></select>
+                        </div>
+                        <div class="relative h-80 w-full">
+                            <div id="pie-loader" class="chart-loader absolute inset-0 flex items-center justify-center z-10"><div class="spinner"></div></div>
+                            <div id="plot-pie" class="h-80 w-full"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Boxplot & Distplot -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="glass-panel rounded-2xl p-5 sm:p-6">
+                        <h3 class="text-lg font-bold text-white mb-1">BHK Price Range</h3>
+                        <p class="text-xs text-slate-400 mb-4">Price distribution across 1–4 BHK configurations</p>
+                        <div class="relative h-80 w-full">
+                            <div id="boxplot-loader" class="chart-loader absolute inset-0 flex items-center justify-center z-10"><div class="spinner"></div></div>
+                            <div id="plot-boxplot" class="h-80 w-full"></div>
+                        </div>
+                    </div>
+                    <div class="glass-panel rounded-2xl p-5 sm:p-6">
+                        <h3 class="text-lg font-bold text-white mb-1">Price Distribution</h3>
+                        <p class="text-xs text-slate-400 mb-4">Seaborn KDE density comparison (Flats vs Houses)</p>
+                        <div class="relative min-h-[280px] flex items-center justify-center rounded-xl bg-slate-900/50 border border-slate-800/80 p-2">
+                            <div id="distplot-loader" class="chart-loader flex flex-col items-center justify-center gap-2 text-xs text-slate-400 py-12">
+                                <div class="spinner"></div>
+                                <span>Rendering distribution plot...</span>
+                            </div>
+                            <img id="plot-distplot" class="hidden w-full h-auto rounded-lg" alt="Property Type Price Distribution">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Wordcloud -->
+                <div class="glass-panel rounded-2xl p-5 sm:p-6">
+                    <h3 class="text-lg font-bold text-white mb-1">Key Selling Features</h3>
+                    <p class="text-xs text-slate-400 mb-4">Generated from property amenity lists via <code class="text-cyan-300">/api/analytics/wordcloud</code></p>
+                    <div class="relative min-h-[240px] flex items-center justify-center rounded-xl bg-slate-900/50 border border-slate-800/80 p-3">
+                        <div id="wordcloud-loader" class="chart-loader flex flex-col items-center justify-center gap-2 text-xs text-slate-400 py-12">
+                            <div class="spinner"></div>
+                            <span>Generating feature word cloud...</span>
+                        </div>
+                        <img id="plot-wordcloud" class="hidden max-w-full h-auto rounded-lg shadow-lg" alt="Key Selling Features Word Cloud">
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 3: RECOMMENDER -->
+            <section id="recommender-section" class="hidden-section max-w-5xl mx-auto space-y-6">
+                <div>
+                    <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-400/25 mb-3">
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+                        Proximity &amp; Similarity Discovery
+                    </span>
+                    <h2 class="text-2xl sm:text-3xl font-bold text-white tracking-tight">Smart Recommender</h2>
+                    <p class="text-sm text-slate-400 mt-1">Find properties near key Gurgaon landmarks or get top-5 cosine similarity matches.</p>
+                </div>
+
+                <!-- Location Radius Search -->
+                <div class="glass-panel rounded-2xl overflow-hidden">
+                    <div class="px-6 sm:px-8 py-5 border-b border-slate-800/80 bg-slate-900/50">
+                        <h3 class="text-lg font-bold text-white">Location Radius Search</h3>
+                        <p class="mt-0.5 text-xs text-slate-400">Queries <code class="text-cyan-300">POST /api/recommend/search</code> for properties within your chosen radius.</p>
+                    </div>
+                    <div class="p-6 sm:p-8">
+                        <form id="radius-form" class="grid grid-cols-1 md:grid-cols-12 gap-5 items-end">
+                            <div class="md:col-span-5">
+                                <label for="r_location" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Center Location</label>
+                                <select id="r_location" class="form-control"></select>
+                            </div>
+                            <div class="md:col-span-4">
+                                <div class="flex justify-between items-center mb-1.5">
+                                    <label for="r_radius" class="block text-xs font-semibold uppercase tracking-wider text-slate-400">Radius (in Kms)</label>
+                                    <span id="radius-live-badge" class="text-xs font-bold text-cyan-400">2.0 km</span>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <input type="range" id="r_radius_slider" min="0.5" max="20" step="0.5" value="2" aria-label="Radius slider in kilometers" class="flex-1 accent-indigo-500 cursor-pointer">
+                                    <input type="number" step="0.1" min="0.1" id="r_radius" required value="2" class="form-control !w-20 text-center">
+                                </div>
+                            </div>
+                            <div class="md:col-span-3">
+                                <button type="submit" id="radius-submit-btn" class="w-full inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white text-sm font-semibold transition-all shadow-lg shadow-indigo-900/40 active:scale-[0.98] disabled:opacity-60">
+                                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                                    <span>Search Area</span>
+                                </button>
+                            </div>
+                        </form>
+                        <div id="radius-results" class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 hidden"></div>
+                    </div>
+                </div>
+
+                <!-- Similar Apartment Recommender -->
+                <div class="glass-panel rounded-2xl overflow-hidden">
+                    <div class="px-6 sm:px-8 py-5 border-b border-slate-800/80 bg-slate-900/50">
+                        <h3 class="text-lg font-bold text-white">Similar Apartment Recommender</h3>
+                        <p class="mt-0.5 text-xs text-slate-400">Queries <code class="text-emerald-300">POST /api/recommend/apartments</code> using your trained similarity model.</p>
+                    </div>
+                    <div class="p-6 sm:p-8">
+                        <form id="recommend-form" class="flex flex-col sm:flex-row gap-4 items-end">
+                            <div class="flex-1 w-full">
+                                <label for="r_apartment" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Select an Apartment</label>
+                                <select id="r_apartment" class="form-control"></select>
+                            </div>
+                            <button type="submit" id="recommend-submit-btn" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white text-sm font-semibold transition-all shadow-lg shadow-emerald-900/40 active:scale-[0.98] disabled:opacity-60">
+                                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                                <span>Recommend</span>
+                            </button>
+                        </form>
+
+                        <div class="mt-6 overflow-x-auto rounded-xl border border-slate-700/80 hidden" id="recommend-table-container">
+                            <table class="min-w-full divide-y divide-slate-800">
+                                <thead class="bg-slate-900/90">
+                                    <tr>
+                                        <th class="px-5 py-3.5 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">#</th>
+                                        <th class="px-5 py-3.5 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Property Name</th>
+                                        <th class="px-5 py-3.5 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Similarity Score</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recommend-tbody" class="bg-slate-900/40 divide-y divide-slate-800/80"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Mobile Floating Bottom Navigation Dock (Phones Only) -->
+    <nav aria-label="Quick Mobile Navigation" class="sm:hidden fixed bottom-3 inset-x-3 z-30 bg-obsidian-900/92 backdrop-blur-2xl border border-slate-700/80 rounded-2xl p-1.5 shadow-2xl flex items-center justify-around">
+        <button type="button" data-mobile-tab="predictor" class="mobile-dock-btn flex-1 flex flex-col items-center justify-center py-2 rounded-xl text-indigo-400 bg-indigo-500/15 transition-all">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/></svg>
+            <span class="text-[10px] font-semibold mt-1">Predictor</span>
+        </button>
+        <button type="button" data-mobile-tab="analytics" class="mobile-dock-btn flex-1 flex flex-col items-center justify-center py-2 rounded-xl text-slate-400 transition-all">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+            <span class="text-[10px] font-semibold mt-1">Analytics</span>
+        </button>
+        <button type="button" data-mobile-tab="recommender" class="mobile-dock-btn flex-1 flex flex-col items-center justify-center py-2 rounded-xl text-slate-400 transition-all">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span class="text-[10px] font-semibold mt-1">Explore</span>
+        </button>
+    </nav>
+
+    <!-- Toast Container -->
+    <div id="toast-container" aria-live="polite" class="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
