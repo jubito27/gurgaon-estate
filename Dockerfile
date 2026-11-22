@@ -20,7 +20,7 @@ COPY flask-app/requirements.txt /tmp/requirements.txt
 
 # Wheels only: avoids compiling scientific packages and keeps the final image lean.
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --only-binary=:all: -r /tmp/requirements.txt
+    pip install --no-compile --only-binary=:all: -r /tmp/requirements.txt
 
 COPY flask-app/ /app/app/
 COPY data/processed/feature_selection/gurgaon_properties_post_feature_selection_v2.csv /app/data/processed/feature_selection/gurgaon_properties_post_feature_selection_v2.csv
