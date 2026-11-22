@@ -24,7 +24,7 @@ jobs:
       DVC_REMOTE_BUCKET: gurgaon-estate
       CODEDEPLOY_APP: gurgaon-estate
       CODEDEPLOY_GROUP: gurgaon-estate-deployment-group
-      TARGET_GROUP_ARN: arn:aws:elasticloadbalancing:ap-southeast-2:970734043001:targetgroup/gurgaon-estate-public-tg/REPLACE_AFTER_CREATE
+      TARGET_GROUP_ARN: arn:aws:elasticloadbalancing:ap-southeast-2:970734043001:targetgroup/gurgaon-estate-public-tg/740a28249f892420
       PUBLIC_URL: http://ec2-balancer-1-1963961444.ap-southeast-2.elb.amazonaws.com:8080
 
     steps:
