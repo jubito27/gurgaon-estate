@@ -153,7 +153,7 @@ jobs:
           for attempt in $(seq 1 60); do
             HEALTHY="$(aws elbv2 describe-target-health \
               --target-group-arn "$TARGET_GROUP_ARN" \
-              --query 'length(TargetHealthDescriptions[?TargetHealth.State==\x60healthy\x60])' \
+              --query 'length(TargetHealthDescriptions[?TargetHealth.State==`healthy`])' \
               --output text --region "$AWS_REGION")"
             echo "Healthy Gurgaon Estate targets: $HEALTHY"
             if [[ "$HEALTHY" -ge 1 ]] && curl --fail --silent --show-error "$PUBLIC_URL/health"; then
